@@ -15,6 +15,7 @@ use Closure;
 use DateTime;
 use DateTimeZone;
 use DatePeriod;
+use JsonSerializable;
 use InvalidArgumentException;
 use Symfony\Component\Translation\Translator;
 use Symfony\Component\Translation\TranslatorInterface;
@@ -49,7 +50,7 @@ use Symfony\Component\Translation\Loader\ArrayLoader;
  * @property-read string  $timezoneName
  * @property-read string  $tzName
  */
-class Carbon extends DateTime
+class Carbon extends DateTime implements JsonSerializable
 {
     /**
      * The day constants
@@ -120,6 +121,12 @@ class Carbon extends DateTime
      * @var string
      */
     protected static $toStringFormat = self::DEFAULT_TO_STRING_FORMAT;
+
+    /**
+     * Format or formatting function to use for jsonSerialize method when json_encode call.
+     * @var string|Closure
+     */
+    protected static $toJsonFormat = null;
 
     /**
      * A test Carbon instance to be returned when now instances are created
@@ -1057,6 +1064,41 @@ class Carbon extends DateTime
     public function toW3cString()
     {
         return $this->format(static::W3C);
+    }
+
+
+    ///////////////////////////////////////////////////////////////////
+    /////////////////////// JSON FORMATTING /////////////////////////
+    ///////////////////////////////////////////////////////////////////
+
+    /**
+     * Reset the format used to the default when converting Carbon instance to a json
+     */
+    public static function resetToJsonFormat()
+    {
+        static::setToJsonFormat(null);
+    }
+
+    /**
+     * Set the default format used when converting Carbon instance to a json
+     *
+     * @param string $format
+     */
+    public static function setToJsonFormat($format)
+    {
+        static::$toJsonFormat = $format;
+    }
+
+    public function jsonSerialize()
+    {
+        if (is_string(static::$toJsonFormat)) {
+            return $this->format(static::$toJsonFormat);
+        } else if (is_callable(static::$toJsonFormat)) {
+            return call_user_func(static::$toJsonFormat, $this);
+        } else {
+            // return in default DateTime format
+            return new DateTime($this);
+        }
     }
 
     ///////////////////////////////////////////////////////////////////
